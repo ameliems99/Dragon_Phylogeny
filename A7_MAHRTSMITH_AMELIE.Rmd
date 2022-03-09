@@ -1,19 +1,40 @@
 ---
-title: "Dragon Phylogeny"
+title: "Phylogenetic positions of three recently described dragon species"
+author: Amelie Mahrt-Smith, Queen's University   
+subtitle: Access files on [Github](https://github.com/ameliems99/Dragon_Phylogeny)
 output: html_document
 ---
-```{r warning = FALSE}
+***
+## Dragon Species  
+This report analyzes the phylogenetic relationships between three recently described dragon species, the *Red serpent* (Windseeker, 2021), the *Snowheart* (fanTASyartistry, 2022), and the *Steel boss* (ERA7, 2022), with the known dragon species previously described by [Colautti (2009)](https://gizmodo.com/the-evolutionary-history-of-dragons-illustrated-by-a-s-5936427).   
+   
+The *R. serpent* dragon was discovered in the United States of America, and its likeness was captured by user 'Windseeker' on [DeviantArt](https://www.deviantart.com/windseeker/art/Red-Serpent-893955932). Curiously, the *R. serpent* has been observed to fly when under stress, despite having neither wings nor limbs.
+![Red Serpent](./images/RedSerpent.jpg)
+    
+**Figure 1.** The *Red serpent* dragon engaging in defensive behaviour.    
+    
+The *Snowheart* dragon was discovered recently in the United Kingdom by DeviantArt user 'fanTASyartistry', who has also provided a visual reference of the species on [DeviantArt](https://www.deviantart.com/fantasyartistry/art/Snowheart-Dragon-commission-907603851). This dragon is unique in that it does not breathe fire, but instead appears to breathe some molten chemcial compound that immediately crystallizes upon exposure to the atmosphere. Analyses on these crystalline structures are forthcoming. 
+![Snowheart](./images/Snowheart.jpg)
+**Figure 2.** A rendering of the *Snowheart* dragon.     
+    
+Finally, the *S. boss* dragon was seen in Russia earlier this year. The discoverer, user 'ERA7' on [DeviantArt](https://www.deviantart.com/era7/art/Steel-Dragon-Boss-907575223), observed this dangerous creature from a distance. This species has a rare 2-headed phenotype, a trait which is not encoded in this report, so future analyses may find a different evolutionary origin of this species than proposed here. 
+![Steel boss](./images/SteelBoss.jpg)  
+**Figure 3.** The *Steel boss* dragon from afar.   
+   
+## Analysis  
+```{r message = FALSE, warning = FALSE}
 library(ape)
 library(dplyr)
 library(ggtree)
+
 DragonsNexus <- c(read.nexus.data("input/DragonMatrix.nex"), read.nexus.data("input/A7_MAHRTSMITH_AMELIE_DragonAppend.nex")) #import original and appendment data into single list object 
 
 WeightsDat <- read.csv("input/Weights.csv")  #import weighting data
 WeightsVec <- paste0(WeightsDat$Weight, collapse = "") %>% strsplit(split = "") %>% unlist() #vector of weights
-WeightsNum <- rep(NA, length(WeightsVec))  #empty vector for storing data
+WeightsNum <- rep(NA, length(WeightsVec)) #empty vector for storing data
 for (i in 1:length(WeightsVec)){
   if (WeightsVec[i] %in% c(0:9)) {
-    WeightsNum[i] <- as.numeric(WeightsVec[i])  #keep numbers as-is
+    WeightsNum[i] <- as.numeric(WeightsVec[i])  #if weight already a digit, keep numbers as-is
   } else {
     WeightsNum[i] <- as.numeric(which(LETTERS == WeightsVec[i]) + 9)  #replace letter weights with a corresponding number from 10-35
   }
@@ -21,59 +42,21 @@ for (i in 1:length(WeightsVec)){
 
 WtDragonNex <- DragonsNexus
 for (i in 1:length(WtDragonNex)) {
-  WtDragonNex[[i]] <- paste(as.numeric(WtDragonNex[[i]])*WeightsNum)  #multiply the binary values by the weighted values
+  WtDragonNex[[i]] <- paste(as.numeric(WtDragonNex[[i]])*WeightsNum) #multiply the binary trait values by the weighted values
 }
-
 WtDragonDF <- data.frame(matrix(unlist(WtDragonNex), ncol = length(WtDragonNex[[1]]), byrow = TRUE))  #convert to data frame
 row.names(WtDragonDF) <- names(DragonsNexus)  #keep original row names
+
+WtDragonDist <- dist(WtDragonDF, method = 'euclidean')  #compute evo distances 
+WtDragonTree <- fastme.bal(WtDragonDist)  #minimum evolution tree
+WtDragonTree$tip.label <- gsub("([^X]+)X*", "\\1", WtDragonTree$tip.label)  #remove X's from tip labels
+WtDragonTree <- groupClade(WtDragonTree, .node = c(91, 123))  #highlight new species
+
+ggtree(WtDragonTree, layout = 'circular', branch.length = 'none', aes(colour = group)) + 
+    geom_tiplab(size = 2, hjust = -.1) + 
+    scale_colour_manual(values = c("black", "red", "blue"))  #plot phylogenetic tree
 ```
-
-Use ggtree! review 'layouts' section (for quiz) 
-and annotations section for this report probably
-You can annotate the tips with dragon images 
-https://guangchuangyu.github.io/ggtree-book/chapter-ggtree.html 
-
-
-
-![Snowheart Dragon--British, by fanTASyartistry  (2022)](./images/Snowheart.jpg)
-
-by fanTASyartistry on [DeviantArt](https://www.deviantart.com/fantasyartistry/art/Snowheart-Dragon-commission-907603851) 
-(2022). 
-
-
-
-![Steel Dragon Boss--Russia, by ERA7 (2022)](./images/SteelBoss.jpg)
-
-by ERA7 on [DeviantArt](https://www.deviantart.com/era7/art/Steel-Dragon-Boss-907575223) (2022).
-
-
-
-![Red Serpent--American, by Windseeker 2021](./images/RedSerpent.jpg)
-
-by Windseeker on [DeviantArt](https://www.deviantart.com/windseeker/art/Red-Serpent-893955932) (2021). 
-
-
-```{r}
-WtDragonDist <- dist(WtDragonDF, method = 'euclidean')
-WtDragonTree <- fastme.bal(WtDragonDist)
-WtDragonTree$tip.label <- gsub("([^X]+)X*", "\\1", WtDragonTree$tip.label)
-
-tree2 <- groupClade(WtDragonTree, .node = c(91, 123))
-
-
-pdf()
-  ggtree(tree2, layout = 'circular', aes(colour = group)) + geom_text(aes(label=node), hjust=-.3, size = 1) + geom_tiplab(size = 1)
-# + scale_colour_something(values = c("""""""))
-dev.off()
-
-images <- c("images/RedSerpent.jpg")
-
-library(ggimage)
-pdf()
-  ggtree(tree2, layout = 'circular', aes(colour = group)) + geom_text(aes(label=node), hjust=-.3, size = 1) + geom_tiplab(size = 1) + geom_tiplab(aes(image = images), geom = "image") 
-# + scale_colour_something(values = c("""""""))
-dev.off()
-```
-
- 75 (node 41), 76 (node 7), and 77 (node 42) are your dragons.
-76 and 77 split from node 123, which connects to the tree via 97->96->83->82->81
+   
+**Figure 4**. The evolutionary origins of the *Red Serpent*, the *Snowheart*, and the *Steel Boss* dragons.   
+   
+It appears that the *Snowheart* and *S. boss* dragons (75British and 77Russia, respectively) arose from the same lineage, highlighted in blue in Fig. 4. The *R. serpent* dragon (76American), highlighted in red (Fig.4), is unsurprisingly related to the snake. There is therefore exciting potential to elucidate the genetic basis of defensive flying without wings in the *R. serpent* lineage, if we could figure out how to get close enough to take samples.  
